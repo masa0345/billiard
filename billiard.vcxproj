@@ -179,6 +179,7 @@
     <ClInclude Include="player.h" />
     <ClInclude Include="quaternion.h" />
     <ClInclude Include="range.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="table.h" />
     <ClInclude Include="vector2.h" />
