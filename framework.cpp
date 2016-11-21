@@ -2,10 +2,6 @@
 #include "scene.h"
 #include <DxLib.h>
 
-#include "mouse_input.h"
-#include "ball.h"
-#include "table.h"
-
 Framework::Framework()
 {
 	const int WindowWidth = 640, WindowHeight = 480;
