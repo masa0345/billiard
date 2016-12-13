@@ -1,7 +1,7 @@
 #pragma once
 
-template<typename T> struct Vector3;
-typedef Vector3<float> vec3f;
+#include "vector3.h"
+#include "quaternion.h"
 
 #include <string>
 
@@ -15,9 +15,13 @@ public:
 	void SetVisible(bool visible);
 	void SetPosition(const vec3f& pos);
 	void SetRotation(const vec3f& rot);
+	void SetRotation(const vec3f& axis, float angle);
+	void AddRotation(const vec3f& axis, float angle);
 	void Draw() const;
 
 private:
 	int handle_;
 	bool visible_;
+	vec3f pos_;
+	Quaternion rot_;
 };

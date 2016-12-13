@@ -22,16 +22,19 @@ public:
 	virtual bool CollideWith(Collidable* c) override;
 	virtual bool Response(Ball* b) override;
 	virtual bool Response(Table* t) override;
+	virtual bool IsStatic() const override;
 
 	float GetRadius() const;
 	int GetNumber() const;
 	const vec3f& GetVel() const;
 	void SetVel(const vec3f& vel);
+	bool IsFalling() const;
+	void Reset(const vec3f& pos);
 
 private:
 	struct ColData;
 	// Õ“Ëî•ñ‚ğ’Ç‰Á
-	void AddColList(float time, const vec3f& vel, Ball* another);
+	void AddColList(float time, const vec3f& vel, Ball* another, bool fall = false);
 	void RemoveColList(float time);
 	bool Contains(float time, const vec3f& vel, Ball* another);
 
@@ -39,8 +42,7 @@ private:
 	const float radius_; // ”¼Œa
 	int number_; // ƒ{[ƒ‹‚Ì”Ô†
 	vec3f vel_; // ‘¬“x
-	vec3f rot_axis_;
-	float rot_angle_;
 	std::list<ColData> col_;
-	bool remove_flag;
+	bool remove_flag_;
+	int falling_;
 };

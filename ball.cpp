@@ -54,10 +54,11 @@ float CalcCollisionTimeOfBalls(
 // 衝突情報
 struct Ball::ColData
 {
-	ColData(float t, const vec3f& v, Ball* b) : time_(t), vel_(v), another_(b) {}
+	ColData(float t, const vec3f& v, Ball* b, bool f) : time_(t), vel_(v), another_(b), fall_(f) {}
 	float time_; // 衝突時刻 0.f～1.f
 	vec3f vel_; // 衝突後の速度
 	Ball* another_; // 衝突相手 ボール以外はnull
+	bool fall_; // ポケットに落下
 };
 
 // ColData用のイテレータ
@@ -96,6 +97,10 @@ public:
 	Range<float> time_range() const {
 		return Range<float>(elem_.begin_time_, elem_.end_time_);
 	}
+	bool is_fall() const {
+		if (ball_->col_.empty()) return false;
+		return it->fall_;
+	}
 
 	ColDataIterator& operator++() {
 		assert(counter_ <= static_cast<int>(ball_->col_.size()));
@@ -131,7 +136,7 @@ private:
 };
 
 Ball::Ball(const vec3f& pos, int num) 
-	: GameObject(BALL, pos), radius_(0.36f), number_(num), rot_angle_(0.f), remove_flag(false)
+	: GameObject(BALL, pos), radius_(0.36f), number_(num), remove_flag_(false), falling_(0)
 {
 	pos_.y += radius_;
 	model_ = std::make_shared<Model>("ball/" + std::to_string(num) + ".pmd");
@@ -140,11 +145,26 @@ Ball::Ball(const vec3f& pos, int num)
 
 void Ball::Update()
 {
+	// 落下中の処理
+	if (falling_ > 0) {
+		if (falling_ < 5) {
+			if (falling_ == 1) {
+				col_.clear();
+				Scene::RegisterCollider(this);
+			}
+			++falling_;
+		} else {
+			vel_ = vec3f();
+			model_->SetVisible(false);
+		}
+		return;
+	}
+
 	// 当たり判定登録
 	col_.clear();
 	Scene::RegisterCollider(this);
 
-	// 摩擦(仮)
+	// 摩擦
 	float f = 0.001f;
 	if (vel_.LengthSq() < f*f) {
 		vel_.x = vel_.y = vel_.z = 0.f;
@@ -155,25 +175,23 @@ void Ball::Update()
 
 void Ball::UpdatePosition()
 {
-	VECTOR s, e;
-	s = { pos_.x, pos_.y, pos_.z };
 	ColDataIterator it(this);
 	for (it.begin(); !it.end(); ++it) {
-		e = { it->pos_.x, it->pos_.y, it->pos_.z };
-		DrawLine3D(s, e, 0xffffff);
-		s = e;
 	}
 	vel_ = it->vel_;
 	pos_ = it->pos_;
 	model_->SetPosition(pos_);
+	if (it.is_fall() && falling_ == 0) falling_ = 1;
 
-	e = { it->pos_.x, it->pos_.y, it->pos_.z };
-	DrawLine3D(s, e, 0xffffff);
-
-	rot_axis_ = vec3f(-vel_.z, vel_.y, vel_.x).Normalize();
-	s = { pos_.x, pos_.y, pos_.z };
-	e = { pos_.x+rot_axis_.x, pos_.y+rot_axis_.y, pos_.z+rot_axis_.z };
-	DrawLine3D(s, e, 0xff0000);
+	// 回転
+	if (falling_ == 0 && !vel_.IsZero()) {
+		float rot_angle = vel_.Length() / radius_;
+		if (rot_angle > 0.5f) {
+			rot_angle = 0.5f;
+		}
+		vec3f rot_axis = vec3f(vel_.z, vel_.y, -vel_.x).Normalize();
+		if (!rot_axis.IsZero()) model_->AddRotation(rot_axis, rot_angle);
+	}
 }
 
 void Ball::Draw() const
@@ -193,6 +211,8 @@ bool Ball::CollideWith(Collidable* c)
 //    [0.0, 0.2] [0.2, 0.6] [0.6, 1.0] の区間で判定を行う
 bool Ball::Response(Ball* ball)
 {
+	// 落下中は何もしない
+	if (falling_ || ball->falling_) return true;
 	// 両方停止している場合は何もしない
 	if (vel_.IsZero() && col_.empty() && 
 		ball->vel_.IsZero() && ball->col_.empty()) return true;
@@ -203,9 +223,11 @@ bool Ball::Response(Ball* ball)
 	ColDataIterator it1(this), it2(ball);
 	// it1の最後の区間とit2の各区間で判定
 	it1.last(); 
+	if (it1.is_fall()) return true;
 	r1 = it1.time_range();
 	for (it2.begin(); !it2.end(); ++it2) {
 		if (it1->begin_time_ > it2->end_time_) continue;
+		if (it2.is_fall()) break;
 		r2 = it2.time_range().Intersect(r1);
 		col_time = CalcCollisionTimeOfBalls(it1->pos_, it2->pos_, it1->vel_, it2->vel_, radius_, r2.GetHigh() - r2.GetLow());
 		if (col_time > -epsilon) {
@@ -225,13 +247,6 @@ bool Ball::Response(Ball* ball)
 		vec3f c = (1.f + e) * 0.5f * (it1->vel_ - it2->vel_).Dot(dp) * dp;
 		vec3f cv1 = it1->vel_ - c;
 		vec3f cv2 = it2->vel_ + c;
-		/*float d = 4.f*radius_*radius_ -
-			((it1->pos_ + cv1*(it1->end_time_ - it1->begin_time_)) -
-				(it2->pos_ + cv2*(it2->end_time_ - it2->begin_time_))).LengthSq();
-		if (d > radius_/4.f) {
-			printfDx("%f\n", d);
-			//assert(0);
-		}*/
 		// 衝突リストに未登録なら追加
 		if (min_col_time >= col_time && 
 			!Contains(col_time, cv1, ball) && !ball->Contains(col_time, cv2, this)) {
@@ -253,44 +268,23 @@ bool Ball::Response(Ball* ball)
 // ボールとテーブルの衝突判定
 bool Ball::Response(Table* t)
 {
+	if (falling_) {
+		t->SetBallState(number_, 0);
+		return true;
+	}
 	float tw = t->GetWidth();
 	float e = t->GetRestitution() * GetRestitution();
 	Range<float> t_range(0.f, 1.f);
 	float col_time, min_col_time = 1.f;
 	vec3f dv, dp, col_vel;
+	bool fall = false;
+	t->SetBallState(number_, 1);
 	ColDataIterator it(this);
 	for (it.begin(); !it.end(); ++it) {
 		// 現フレームでの残り移動距離
 		dv = it->vel_ * (it->end_time_ - it->begin_time_);
 		// ボールとテーブルの距離
 		dp = it->pos_ - t->GetPos();
-
-		/////////////////
-		/*if (tw - radius_ < it->pos_.z) {
-			vec3f vel = vec3f(it->vel_.x, it->vel_.y, -it->vel_.z-radius_)*e;
-			if (min_col_time >= it->begin_time_ && !Contains(it->begin_time_, vel, nullptr)) {
-				min_col_time = it->begin_time_;
-				col_vel = vel;
-			}
-		} else if (-tw + radius_ > it->pos_.z) {
-			vec3f vel = vec3f(it->vel_.x, it->vel_.y, -it->vel_.z+radius_)*e;
-			if (min_col_time >= it->begin_time_ && !Contains(it->begin_time_, vel, nullptr)) {
-				min_col_time = it->begin_time_;
-				col_vel = vel;
-			}
-		} else if (tw*2.f - radius_ < it->pos_.x) {
-			vec3f vel = vec3f(-it->vel_.x-radius_, it->vel_.y, it->vel_.z)*e;
-			if (min_col_time >= it->begin_time_ && !Contains(it->begin_time_, vel, nullptr)) {
-				min_col_time = it->begin_time_;
-				col_vel = vel;
-			}
-		} else if (-tw*2.f + radius_ > it->pos_.x) {
-			vec3f vel = vec3f(-it->vel_.x+radius_, it->vel_.y, it->vel_.z)*e;
-			if (min_col_time >= it->begin_time_ && !Contains(it->begin_time_, vel, nullptr)) {
-				min_col_time = it->begin_time_;
-				col_vel = vel;
-			}
-		}*/
 
 		// テーブルの枠までの距離をボールの移動距離で割る
 		// その値が0から1の間なら現フレームで衝突
@@ -300,7 +294,8 @@ bool Ball::Response(Table* t)
 			vec3f vel = vec3f(it->vel_.x, it->vel_.y, -it->vel_.z)*e;
 			if (min_col_time >= col_time && !Contains(col_time, vel, nullptr)) {
 				min_col_time = col_time;
-				col_vel = vel;
+				fall = t->IsPocketX(it->pos_.x + it->vel_.x * (col_time - it->begin_time_));
+				col_vel = fall ? it->vel_ : vel;
 			}
 		} else if (dv.z < 0.f && t_range.Within(col_time = (-tw - dp.z + radius_) / dv.z, epsilon)) {
 			col_time = it->begin_time_ + col_time * (it->end_time_ - it->begin_time_);
@@ -308,7 +303,8 @@ bool Ball::Response(Table* t)
 			vec3f vel = vec3f(it->vel_.x, it->vel_.y, -it->vel_.z)*e;
 			if (min_col_time >= col_time && !Contains(col_time, vel, nullptr)) {
 				min_col_time = col_time;
-				col_vel = vel;
+				fall = t->IsPocketX(it->pos_.x + it->vel_.x * (col_time - it->begin_time_));
+				col_vel = fall ? it->vel_ : vel;
 			}
 		}
 		if (dv.x > 0.f && t_range.Within(col_time = (tw*2.f - dp.x - radius_) / dv.x, epsilon)) {
@@ -317,7 +313,8 @@ bool Ball::Response(Table* t)
 			vec3f vel = vec3f(-it->vel_.x, it->vel_.y, it->vel_.z)*e;
 			if (min_col_time >= col_time && !Contains(col_time, vel, nullptr)) {
 				min_col_time = col_time;
-				col_vel = vel;
+				fall = t->IsPocketZ(it->pos_.z + it->vel_.z * (col_time - it->begin_time_));
+				col_vel = fall ? it->vel_ : vel;
 			}
 		} else if (dv.x < 0.f && t_range.Within(col_time = (-tw*2.f - dp.x + radius_) / dv.x, epsilon)) {
 			col_time = it->begin_time_ + col_time * (it->end_time_ - it->begin_time_);
@@ -325,30 +322,28 @@ bool Ball::Response(Table* t)
 			vec3f vel = vec3f(-it->vel_.x, it->vel_.y, it->vel_.z)*e;
 			if (min_col_time >= col_time && !Contains(col_time, vel, nullptr)) {
 				min_col_time = col_time;
-				col_vel = vel;
+				fall = t->IsPocketZ(it->pos_.z + it->vel_.z * (col_time - it->begin_time_));
+				col_vel = fall ? it->vel_ : vel;
 			}
 		}
 	}
 
-
-	ColDataIterator it2(this);
-	it2.last();
-	if (!Range<float>(-tw*2.f + radius_, tw*2.f - radius_).Within(it2->pos_.x, epsilon)) {
-		//assert(0);
-		printfDx("x out of range %d\n", number_);
-	}
-	if (!Range<float>(-tw + radius_, tw - radius_).Within(it2->pos_.z, epsilon)) {
-		//assert(0);
-		printfDx("z out of range %d\n", number_);
-	}
-
-
 	if (min_col_time < 1.f) {
-		AddColList(min_col_time, col_vel, nullptr);
-		return false;
+		if (fall) {
+			// ポケットに落ちる(速度は適当)
+			col_vel = col_vel.Normalize() * 0.4f;
+			col_vel.y -= radius_ * 0.5f;
+		}
+		AddColList(min_col_time, col_vel, nullptr, fall);
+		return fall;
 	}
 
 	return true;
+}
+
+bool Ball::IsStatic() const
+{
+	return vel_.IsZero();
 }
 
 float Ball::GetRadius() const
@@ -371,19 +366,37 @@ void Ball::SetVel(const vec3f& vel)
 	vel_ = vel;
 }
 
-void Ball::AddColList(float time, const vec3f& vel, Ball* another)
+bool Ball::IsFalling() const
+{
+	return falling_ > 0;
+}
+
+void Ball::Reset(const vec3f& pos)
+{
+	// 再設置
+	// posの位置に他のボールが無いか注意
+	col_.clear();
+	falling_ = 0;
+	vel_ = vec3f();
+	pos_ = pos;
+	pos_.y += radius_;
+	model_->SetPosition(pos_);
+	model_->SetVisible(true);
+}
+
+void Ball::AddColList(float time, const vec3f& vel, Ball* another, bool fall)
 {
 	vec3f v = vel;
 	RemoveColList(time);
-	col_.emplace_back(time, v, another);
+	col_.emplace_back(time, v, another, fall);
 }
 
 // timeより後で衝突するはずだったデータを削除
 void Ball::RemoveColList(float time)
 {
-	if (col_.empty() || remove_flag) return;
+	if (col_.empty() || remove_flag_) return;
 
-	remove_flag = true;
+	remove_flag_ = true;
 	for (auto it = col_.begin(); it != col_.end(); ++it) {
 		if (it->time_ > time) {
 			while (it != col_.end()) {
@@ -395,7 +408,7 @@ void Ball::RemoveColList(float time)
 			break;
 		} 
 	}
-	remove_flag = false;
+	remove_flag_ = false;
 }
 
 bool Ball::Contains(float time, const vec3f& vel, Ball* another)

@@ -16,11 +16,16 @@ public:
 	virtual void Draw() const override;
 
 	virtual bool CollideWith(Collidable* c) override;
-	virtual bool Response(Ball* ball) override;
 	virtual float GetRestitution() const override;
 
 	float GetWidth() const;
+	float GetHeight() const;
 	int GetBallState(int num) const;
+	void SetBallState(int num, int state);
+
+	// ポケットのある座標の範囲内かチェック
+	bool IsPocketX(float x) const;
+	bool IsPocketZ(float z) const;
 
 	// 9ボールの初期配置に球を設置し, 返り値で手球を返す
 	Ball* SetupNineBall();

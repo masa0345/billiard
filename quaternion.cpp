@@ -2,7 +2,7 @@
 #include <cmath>
 #include <cassert>
 
-Quaternion::Quaternion() : w(1.f)
+Quaternion::Quaternion() : w(1.f), v()
 {
 }
 
@@ -11,6 +11,7 @@ Quaternion::Quaternion(float x, float y, float z, float w) :
 {
 }
 
+// ‰ñ“]²‚Æ‰ñ“]—Ê‚©‚ç•ÏŠ·
 Quaternion::Quaternion(const vec3f& axis, float angle)
 {
 	assert(!axis.IsZero());
@@ -19,7 +20,18 @@ Quaternion::Quaternion(const vec3f& axis, float angle)
 	v = axis.Normalize() * std::sinf(angle);
 }
 
-vec3f Quaternion::ToEuler() const
+// XYZ‰ñ“]‚ÌƒIƒCƒ‰[Šp‚©‚ç•ÏŠ·
+Quaternion::Quaternion(const vec3f& euler)
+{
+	vec3f theta = euler * 0.5f;
+	auto t = Quaternion(0.f, 0.f, std::sin(theta.z), std::cos(theta.z)) *
+			 Quaternion(0.f, std::sin(theta.y), 0.f, std::cos(theta.y)) *
+			 Quaternion(std::sin(theta.x), 0.f, 0.f, std::cos(theta.x));
+	w = t.w;
+	v = t.v;
+}
+
+/*vec3f Quaternion::ToEuler() const
 {
 	/// ŠÔˆá‚Á‚Ä‚é??
 
@@ -37,7 +49,7 @@ vec3f Quaternion::ToEuler() const
 	}
 
 	return result;
-}
+}*/
 
 float Quaternion::Dot(const Quaternion& q) const
 {
@@ -54,14 +66,14 @@ const Quaternion Quaternion::operator*(const Quaternion& rhs) const
 {
 	Quaternion q;
 	q.w = w*rhs.w - v.Dot(rhs.v);
-	q.v = w*v + rhs.w*rhs.v + v.Cross(rhs.v);
+	q.v = w*rhs.v + rhs.w*v + v.Cross(rhs.v);
 	return q;
 }
 
 Quaternion& Quaternion::operator*=(const Quaternion& rhs)
 {
 	w = w*rhs.w - v.Dot(rhs.v);
-	v = w*v + rhs.w*rhs.v + v.Cross(rhs.v);
+	v = w*rhs.v + rhs.w*v + v.Cross(rhs.v);
 	return *this;
 }
 

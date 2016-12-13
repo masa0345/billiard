@@ -5,13 +5,15 @@
 // 四元数
 class Quaternion 
 {
+	friend class Matrix4x3;
 public:
 	Quaternion();
 	Quaternion(float x, float y, float z, float w);
 	Quaternion(const vec3f& axis, float angle);
+	explicit Quaternion(const vec3f& euler);
 
 	// X->Y->Z回転のオイラー角に変換
-	vec3f ToEuler() const;
+	//vec3f ToEuler() const;
 	// 内積
 	float Dot(const Quaternion& q) const;
 	// 逆数
