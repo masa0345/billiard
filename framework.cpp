@@ -3,6 +3,7 @@
 #include "camera.h"
 #include "mouse_input.h"
 #include "graphics.h"
+#include "sound.h"
 #include <DxLib.h>
 
 Framework::Framework()
@@ -12,6 +13,9 @@ Framework::Framework()
 	SetGraphMode(size.x, size.y, 32);
 	SetMainWindowText("billiard");
 	SetChangeScreenModeGraphicsSystemResetFlag(FALSE);
+	// 3Dサウンドを使用
+	SetEnableXAudioFlag(TRUE); 
+	Set3DSoundOneMetre(10.f);
 
 	DxLib_Init();
 	SetDrawScreen(DX_SCREEN_BACK);
@@ -24,6 +28,7 @@ Framework::Framework()
 	SetWriteZBuffer3D(TRUE);
 
 	Font::Init();
+	Sound::Init();
 	MouseInput::Init();
 	root_ = new Root();
 	root_->Init();
@@ -33,33 +38,16 @@ Framework::~Framework()
 {
 	if (root_) delete root_;
 	MouseInput::Dest();
+	Sound::Dest();
 
 	DxLib_End();
 }
 
 void Framework::MainLoop()
 {
-
-	float x, z;
-	x = z = 0.f;
-
 	while (!ScreenFlip() && !ProcessMessage() && !ClearDrawScreen() && !clsDx())
 	{
-		//Sleep(1000);
-		//WaitKey();
-		if (CheckHitKey(KEY_INPUT_LEFT)) {
-			x -= 0.1f;
-		} else if (CheckHitKey(KEY_INPUT_RIGHT)) {
-			x += 0.1f;
-		}
-		if (CheckHitKey(KEY_INPUT_UP)) {
-			z += 0.1f;
-		} else if (CheckHitKey(KEY_INPUT_DOWN)) {
-			z -= 0.1f;
-		}
-		//DrawLine3D(VGet(x, -2.f, z), VGet(x, 2.f, z), 0xff0000);
-		//printfDx("%f %f\n", x, z);
-
+		Sound::GetInstance().Update();
 		MouseInput::GetInstance().ButtonUpdate();
 		Scene* next_scene = root_->Update();
 		if (root_ != next_scene) {

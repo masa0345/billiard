@@ -23,28 +23,28 @@ public:
 class StringDObject : public DrawObject
 {
 public:
-	StringDObject(int x, int y, char* str, unsigned color) :
+	StringDObject(int x, int y, const std::string& str, unsigned color) :
 		x(x), y(y), str(str), color(color) {}
 	virtual void Draw() const override {
-		DxLib::DrawString(x, y, str, color);
+		DxLib::DrawString(x, y, str.c_str(), color);
 	}
 private:
 	int x, y;
-	char* str;
+	std::string str;
 	unsigned color;
 };
 class FontStringDObject : public DrawObject
 {
 public:
-	FontStringDObject(int num, int x, int y, char* str, unsigned color) :
+	FontStringDObject(int num, int x, int y, const std::string& str, unsigned color) :
 		num(num), x(x), y(y), str(str), color(color) {}
 	virtual void Draw() const override {
 		assert(static_cast<size_t>(num) < fonts.size());
-		DxLib::DrawStringToHandle(x, y, str, color, fonts[num]);
+		DxLib::DrawStringToHandle(x, y, str.c_str(), color, fonts[num]);
 	}
 private:
 	int num, x, y;
-	char* str;
+	std::string str;
 	unsigned color;
 };
 class RectDObject : public DrawObject
@@ -65,26 +65,26 @@ private:
 
 static std::list<std::unique_ptr<DrawObject>> buffer;
 
-void Graphics2D::DrawString(int x, int y, char * str, unsigned color)
+void Graphics2D::DrawString(int x, int y, const std::string& str, unsigned color)
 {
 	buffer.push_back(std::make_unique<StringDObject>(x, y, str, color));
 }
 
-void Graphics2D::DrawStringCenter(int x, int y, char * str, unsigned color)
+void Graphics2D::DrawStringCenter(int x, int y, const std::string& str, unsigned color)
 {
-	int w = GetDrawStringWidth(str, std::strlen(str));
+	int w = GetDrawStringWidth(str.c_str(), std::strlen(str.c_str()));
 	int h = 16;
 	DrawString(x - w/2, y - h/2, str, color);
 }
 
-void Graphics2D::DrawFontString(int num, int x, int y, unsigned color, char * str)
+void Graphics2D::DrawFontString(int num, int x, int y, unsigned color, const std::string& str)
 {
 	buffer.push_back(std::make_unique<FontStringDObject>(num, x, y, str, color));
 }
 
-void Graphics2D::DrawFontStringCenter(int num, int x, int y, unsigned color, char * str)
+void Graphics2D::DrawFontStringCenter(int num, int x, int y, unsigned color, const std::string& str)
 {
-	int w = Font::GetWidth(num, str);
+	int w = Font::GetWidth(num, str.c_str());
 	int h = Font::GetSize(num);
 	DrawFontString(num, x - w / 2, y - h / 2, color, str);
 }
@@ -120,7 +120,7 @@ int Font::GetSize(int num)
 	return GetFontSizeToHandle(fonts[num]);
 }
 
-int Font::GetWidth(int num, char * str)
+int Font::GetWidth(int num, const char* str)
 {
 	assert(static_cast<size_t>(num) < fonts.size());
 	return GetDrawStringWidthToHandle(str, std::strlen(str), fonts[num]);

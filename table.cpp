@@ -131,7 +131,7 @@ Ball * Table::SetupEightBall()
 			}
 		}
 	}
-	const vec3f ofs = vec3f(0.621f, 0.f, 0.362f);
+	const vec3f ofs = vec3f(0.63f, 0.f, 0.36f);
 	vec3f ini_pos = pos_ + vec3f(width_, height_, 0.f);
 	Ball* ball = new Ball(vec3f(pos_.x - width_, pos_.y + height_, pos_.z), 0);
 	for (int i = 0; i < 5; ++i) {

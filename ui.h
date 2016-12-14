@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game_object.h"
+#include <string>
 
 // 2D‚ÌUI
 class PlaneUI : public GameObject
@@ -18,7 +19,7 @@ protected:
 class Button : public PlaneUI
 {
 public:
-	Button(int x, int y, int w, int h, char* str = nullptr);
+	Button(int x, int y, int w, int h, const char* str = nullptr);
 	virtual void Draw() const override;
 
 	bool IsClicked() const;
@@ -26,14 +27,14 @@ public:
 
 protected:
 	int width_, height_;
-	char* str_;
+	std::string str_;
 };
 
 // ƒNƒŠƒbƒN‚Å‚«‚é•¶Žš—ñ
 class StringButton : public Button
 {
 public:
-	StringButton(int x, int y, int font_num, char* str);
+	StringButton(int x, int y, int font_num, const char* str);
 	virtual void Draw() const override;
 private:
 	int font_num_;

@@ -16,7 +16,7 @@ void Camera3D::SetViewTransform(const vec3f& p, const vec3f& t)
 
 vec3f Camera3D::ConvWorldPos(const Vector2<int>& screen_pos, float z) const
 {
-	VECTOR v = ConvScreenPosToWorldPos(VGet(screen_pos.x, screen_pos.y, z));
+	VECTOR v = ConvScreenPosToWorldPos(VGet(static_cast<float>(screen_pos.x), static_cast<float>(screen_pos.y), z));
 	return vec3f(v.x, v.y, v.z);
 }
 

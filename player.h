@@ -32,12 +32,12 @@ public:
 	bool GetDisplayGuide() const;
 	void SetDisplayGuide(bool dg);
 	void SetGameClear();
+	int GetTurn() const;
 
 private:
 	void CueUpdate();
 	void CameraUpdate();
 	void CameraMove(float time);
-	//void DisplayGuide();
 
 	const float cue_length_;
 	const float table_height_;
@@ -51,5 +51,6 @@ private:
 	vec3f camera_target_;
 	SphericalCoord camera_pos_, move_pos_;
 	bool display_guide_;
+	int turn_;
 	int state_, state_count_;
 };

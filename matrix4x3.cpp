@@ -162,17 +162,6 @@ std::array<float, 16> Matrix4x3::ToArray() const
 	return a;
 }
 
-/*MATRIX Matrix4x3::ToMATRIX() const
-{
-	MATRIX r;
-	r.m[0][0] = m11; r.m[0][1] = m12; r.m[0][2] = m13; r.m[0][3] = 0.f;
-	r.m[1][0] = m21; r.m[1][1] = m22; r.m[1][2] = m23; r.m[1][3] = 0.f;
-	r.m[2][0] = m31; r.m[2][1] = m32; r.m[2][2] = m33; r.m[2][3] = 0.f;
-	r.m[3][0] = tx;  r.m[3][1] = ty;  r.m[3][2] = tz;  r.m[3][3] = 1.f;
-	return r;
-}*/
-
-
 
 const vec3f operator*(const vec3f& v, const Matrix4x3& m)
 {

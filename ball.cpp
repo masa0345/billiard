@@ -5,9 +5,8 @@
 #include "range.h"
 #include "quaternion.h"
 #include "random.h"
+#include "sound.h"
 #include <cassert>
-
-#include <DxLib.h> // デバッグprintfDx用
 
 
 namespace
@@ -183,7 +182,18 @@ void Ball::UpdatePosition()
 	vel_ = it->vel_;
 	pos_ = it->pos_;
 	model_->SetPosition(pos_);
-	if (it.is_fall() && falling_ == 0) falling_ = 1;
+	if (it.is_fall() && falling_ == 0) {
+		falling_ = 1;
+		Sound::GetInstance().Play3D("pocket", pos_);
+	}
+	bool col_ball = false;
+	for (auto& e: col_) {
+		if (e.another_ != nullptr) {
+			col_ball = true;
+			break;
+		}
+	}
+	if (col_ball) Sound::GetInstance().Play3D("col", pos_);
 
 	// 回転
 	if (falling_ == 0 && !vel_.IsZero()) {

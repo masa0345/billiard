@@ -95,6 +95,6 @@ const Vector3<T> operator*(T t, const Vector3<T>& rhs) {
 
 typedef Vector3<float> vec3f;
 
-///âºê›
+
 const float PI = 3.14152965f;
 const float PI2 = PI * 2.f;

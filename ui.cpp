@@ -3,6 +3,7 @@
 #include "graphics.h"
 #include "range.h"
 #include "player.h"
+#include "sound.h"
 #include <cassert>
 
 PlaneUI::PlaneUI(int x, int y) : 
@@ -10,7 +11,7 @@ PlaneUI::PlaneUI(int x, int y) :
 
 void PlaneUI::Update() {}
 
-Button::Button(int x, int y, int w, int h, char* str) : 
+Button::Button(int x, int y, int w, int h, const char* str) : 
 	PlaneUI(x, y), width_(w), height_(h), str_(str)
 {
 }
@@ -19,7 +20,7 @@ void Button::Draw() const
 {
 	unsigned color = IsMouseOver() ? 0xffffff : 0xdddddd;
 	Graphics2D::DrawRect(x_, y_, x_ + width_, y_ + height_, color, true);
-	if(str_) Graphics2D::DrawString(x_ + 4, y_ + height_/4, str_, 0xffffff);
+	if(!str_.empty()) Graphics2D::DrawString(x_ + 4, y_ + height_/4, str_, 0xffffff);
 }
 
 bool Button::IsClicked() const
@@ -35,7 +36,7 @@ bool Button::IsMouseOver() const
 }
 
 
-StringButton::StringButton(int x, int y, int font_num, char * str) :
+StringButton::StringButton(int x, int y, int font_num, const char* str) :
 	Button(x, y, Font::GetWidth(font_num, str), Font::GetSize(font_num), str), font_num_(font_num)
 {
 }
@@ -102,10 +103,15 @@ int Slider::GetVal() const
 
 PauseMenu::PauseMenu(Player* p) : PlaneUI(220, 110), player_(p)
 {
+	int slider_len = 100;
+	int se = Sound::GetInstance().GetSEVol();
+	int bgm = Sound::GetInstance().GetBGMVol();
+	se = se * slider_len / 255;
+	bgm = bgm * slider_len / 255;
 	close_		= new Button(x_ + 170, y_, 30, 30, "•Â");
 	guide_		= new CheckBox(x_ + 160, y_ + 60, p->GetDisplayGuide());
-	bgm_volume_	= new Slider(x_ +  80, y_ + 100, 40, 100);
-	se_volume_	= new Slider(x_ +  80, y_ + 140, 0, 100);
+	bgm_volume_	= new Slider(x_ +  80, y_ + 100, bgm, slider_len);
+	se_volume_	= new Slider(x_ +  80, y_ + 140, se, slider_len);
 	restart_	= new Button(x_ +  10, y_ + 200, 80, 30, " Ä’§í");
 	title_		= new Button(x_ + 110, y_ + 200, 80, 30, "ƒ^ƒCƒgƒ‹");
 }
@@ -113,6 +119,18 @@ PauseMenu::PauseMenu(Player* p) : PlaneUI(220, 110), player_(p)
 void PauseMenu::Update()
 {
 	player_->SetDisplayGuide(guide_->GetCheck());
+
+	int slider_len = 100;
+	int bgm = Sound::GetInstance().GetBGMVol();
+	bgm = bgm * slider_len / 255;
+	if (bgm_volume_->GetVal() != bgm) {
+		Sound::GetInstance().SetBGMVol(bgm_volume_->GetVal() * 255 / slider_len);
+	}
+	int se = Sound::GetInstance().GetSEVol();
+	se = se * slider_len / 255;
+	if (se_volume_->GetVal() != se) {
+		Sound::GetInstance().SetSEVol(se_volume_->GetVal() * 255 / slider_len);
+	}
 }
 
 void PauseMenu::Draw() const

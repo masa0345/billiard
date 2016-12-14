@@ -7,11 +7,12 @@
 #include "camera.h"
 #include "graphics.h"
 #include "ui.h"
+#include "sound.h"
 #include <cassert>
 #include <stack>
+#include <string>
 #include <algorithm>
 
-#include <DxLib.h>
 
 namespace 
 {
@@ -177,7 +178,8 @@ Scene * Title::Update()
 
 
 // メイン
-GameMain::GameMain(GameMode mode) : Scene(1), mode_(mode), update_while_child_scene_(false)
+GameMain::GameMain(GameMode mode) : 
+	Scene(1), mode_(mode), reset_count_(0), update_while_child_scene_(false)
 {
 }
 
@@ -197,6 +199,8 @@ void GameMain::Init()
 
 	child_ = new FadeIn(30, new GameStart());
 	child_->Init();
+
+	Sound::GetInstance().Play("stage_bgm");
 }
 
 Scene* GameMain::Update()
@@ -205,7 +209,6 @@ Scene* GameMain::Update()
 	if (child_) {
 		if (update_while_child_scene_) UpdateGameObjects();
 		DrawGameObjects();
-
 		return UpdateChild();
 	}
 
@@ -234,7 +237,7 @@ Scene* GameMain::Update()
 	if (IsFallingAllTargetBall()) {
 		player_->SetGameClear();
 		update_while_child_scene_ = true;
-		child_ = new GameClear();
+		child_ = new GameClear(reset_count_, player_->GetTurn());
 		return this;
 	}
 
@@ -268,6 +271,8 @@ void GameMain::ResetCueBall()
 	} while (is_hit);
 	assert(b0);
 	b0->Reset(reset_pos);
+	++reset_count_;
+	update_while_child_scene_ = false;
 }
 
 void GameMain::UpdateGameObjects()
@@ -336,7 +341,6 @@ Scene* FadeIn::Update()
 {
 	bright_ -= fade_rate_;
 	auto screen_size = Camera3D::GetScreenSize();
-	if (time_ == 0) bright_ = 0;
 	Graphics2D::DrawRect(0, 0, screen_size.x, screen_size.y, 0, true, bright_);
 	Graphics2D::Update();
 	if (time_-- == 0) return next_;
@@ -374,8 +378,14 @@ Pause::Pause(GameMode mode, Player* p) : Scene(2), menu_(new PauseMenu(p)), mode
 Scene* Pause::Update()
 {
 	if (menu_->PushClose()) return nullptr;
-	if (menu_->PushRestart()) return new FadeOut(60, new GameMain(mode_));
-	if (menu_->PushTitle()) return new FadeOut(60, new Title(30));
+	if (menu_->PushRestart()) {
+		Sound::GetInstance().SetFadeOut(60);
+		return new FadeOut(60, new GameMain(mode_));
+	}
+	if (menu_->PushTitle()) {
+		Sound::GetInstance().SetFadeOut(60);
+		return new FadeOut(60, new Title(30));
+	}
 
 	UpdateGameObjects();
 
@@ -485,6 +495,7 @@ Scene* GameOver::Update()
 			parent_->ResetCueBall();
 			return nullptr;
 		} else if(no_->IsClicked()) {
+			Sound::GetInstance().SetFadeOut(60);
 			return new FadeOut(60, new Title(60));
 		}
 		break;
@@ -499,20 +510,23 @@ Scene* GameOver::Update()
 }
 
 // ゲームクリア
-GameClear::GameClear() : Scene(2), state_(0), state_count_(0)
+GameClear::GameClear(int reset, int turn) : 
+	Scene(2), state_(0), state_count_(0), reset_(reset), turn_(turn)
 {
 }
 
 Scene* GameClear::Update()
 {
-	int width = 40;
+	int width = 60;
 	auto screen_size = Camera3D::GetScreenSize();
 	int ofs_y;
+	std::string result_turn  = "　　使用ターン数: " + std::to_string(turn_);
+	std::string result_reset = "手球が落ちた回数: " + std::to_string(reset_);
 	switch (state_) {
 	case 0:
 		ofs_y = static_cast<int>(std::sin(PI / 120.f * state_count_) * (screen_size.y / 2 + width));
 		Graphics2D::DrawRect(0, -width * 2 + ofs_y, screen_size.x, 0 + ofs_y, 0x000000, true, 128);
-		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, -width + ofs_y, 0xffffff, "GAME CLEAR");
+		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, -width - 30 + ofs_y, 0xffffff, "GAME CLEAR");
 		if (state_count_ == 60) {
 			++state_;
 			state_count_ = 0;
@@ -520,7 +534,7 @@ Scene* GameClear::Update()
 		break;
 	case 1:
 		Graphics2D::DrawRect(0, screen_size.y / 2 - width, screen_size.x, screen_size.y / 2 + width, 0x000000, true, 128);
-		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, screen_size.y / 2, 0xffffff, "GAME CLEAR");
+		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, screen_size.y / 2 - 30, 0xffffff, "GAME CLEAR");
 		if (state_count_ == 20) {
 			++state_;
 			state_count_ = 0;
@@ -528,9 +542,12 @@ Scene* GameClear::Update()
 		break;
 	case 2:
 		Graphics2D::DrawRect(0, screen_size.y / 2 - width, screen_size.x, screen_size.y / 2 + width, 0x000000, true, 128);
-		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, screen_size.y / 2, 0xffffff, "GAME CLEAR");
+		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, screen_size.y / 2 - 30, 0xffffff, "GAME CLEAR");
+		Graphics2D::DrawFontStringCenter(0, screen_size.x / 2, screen_size.y / 2 + 10, 0xffffff, result_turn);
+		Graphics2D::DrawFontStringCenter(0, screen_size.x / 2, screen_size.y / 2 + 30, 0xffffff, result_reset);
 		if (MouseInput::GetInstance().LeftDown()) {
-			return new FadeOut(90, new Title(90));
+			Sound::GetInstance().SetFadeOut(90);
+			return new FadeOut(90, new Title(60));
 		}
 		break;
 	}

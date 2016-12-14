@@ -31,8 +31,6 @@ private:
 
 public:
 	static Scene* GetCurrentScene();
-	//static GameObject* RegisterObject(GameObject* o);
-	//static void RegisterCollider(Collidable* c);
 };
 
 // ルートシーン
@@ -97,6 +95,7 @@ private:
 	Table* table_;
 	Player* player_;
 	Button* menu_btn_;
+	int reset_count_;
 	bool update_while_child_scene_;
 };
 
@@ -168,9 +167,10 @@ private:
 class GameClear : public Scene
 {
 public:
-	GameClear();
+	GameClear(int reset, int turn);
 	virtual ~GameClear() = default;
 	virtual Scene* Update() override;
 private:
 	int state_, state_count_;
+	int reset_, turn_;
 };
