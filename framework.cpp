@@ -2,6 +2,7 @@
 #include "scene.h"
 #include "camera.h"
 #include "mouse_input.h"
+#include "graphics.h"
 #include <DxLib.h>
 
 Framework::Framework()
@@ -22,6 +23,7 @@ Framework::Framework()
 	// Ｚバッファへの書き込みを有効にする
 	SetWriteZBuffer3D(TRUE);
 
+	Font::Init();
 	MouseInput::Init();
 	root_ = new Root();
 	root_->Init();

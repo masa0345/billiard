@@ -19,7 +19,7 @@ ImageBallGuide::ImageBallGuide(const vec3f& pos, const vec3f& dir) :
 
 void ImageBallGuide::Update()
 {
-	Scene::RegisterCollider(this);
+	my_scene_->RegisterCollider(this);
 	// 1ƒtƒŒ[ƒ€‚Ì‚İ¶‘¶‚·‚é
 	exist_ = false;
 }

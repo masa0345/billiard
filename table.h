@@ -29,6 +29,9 @@ public:
 
 	// 9ボールの初期配置に球を設置し, 返り値で手球を返す
 	Ball* SetupNineBall();
+	// 8ボールの初期配置に球を設置し, 返り値で手球を返す
+	Ball* SetupEightBall();
+	
 
 private:
 	const float width_; // 台の短辺の幅

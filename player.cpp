@@ -88,14 +88,73 @@ void Player::Update()
 		}
 		++state_count_;
 		break;
-	case 4:
-		printfDx("ball 0 fall\n");
-		if (mouse_.LeftDown()) {
-			ball_->Reset(vec3f(-7.95f, table_height_, 0.f));
-			state_ = 3;
+	case 4: // 手球が落下
+		if (!ball_->IsFalling()) {
+			state_ = 2;
 			state_count_ = 0;
 		}
 		break;
+	case 5: // ゲームクリア
+		break;
+
+		/*
+	case 6: // カメラを手球の位置に動かす
+		CueUpdate();
+		if (state_count_ < 30) {
+			CameraMove(std::sin(PI * 0.5f * state_count_ / 30.f));
+		} else {
+			CameraMove(1.f);
+			camera_pos_ += move_pos_;
+			move_pos_ = SphericalCoord();
+			mouse_.UpdateClickRight();
+			state_ = 7;
+			state_count_ = 0;
+			break;
+		}
+		++state_count_;
+		break;
+	case 7: // キューを動かす
+		Graphics2D::DrawString(0, 0, "左クリック：方向決定", 0xffffff);
+		Graphics2D::DrawString(0, 16, "右クリック：カメラ移動", 0xffffff);
+		Graphics2D::DrawString(0, 32, "ホイール　：ズーム", 0xffffff);
+		CameraUpdate();
+		CueUpdate();
+		if (display_guide_) {
+			vec3f shot_dir = cue_dir_;
+			shot_dir.y = 0.f;
+			new ImageBallGuide(ball_->GetPos(), shot_dir.Normalize());
+		}
+		// 左クリックでキューの方向決定
+		if (mouse_.LeftDown()) {
+			state_ = 8;
+		}
+		break;
+	case 8: // ショットの強さを決める
+		Graphics2D::DrawString(0, 0, "左クリック：ショット", 0xffffff);
+		Graphics2D::DrawString(0, 16, "右クリック：キャンセル", 0xffffff);
+		// 強さは0.1～shot_power_max_の間で変動
+		shot_power_ = 0.1f + (1.f - std::cos(PI / 60.f * state_count_)) * 0.5f * shot_power_max_ * 3.f;
+		// 左クリックでショット
+		if (mouse_.LeftDown()) {
+			vec3f shot_dir = cue_dir_;
+			shot_dir.y = 0.f;
+			ball_->SetVel(shot_dir.Normalize()*shot_power_);
+			mouse_.UpdateClickRight();
+			state_ = 2;
+			state_count_ = 0;
+			shot_power_ = 0.1f;
+			break;
+		}
+		// 右クリックでキャンセル
+		if (mouse_.RightDown()) {
+			mouse_.UpdateClickRight();
+			state_ = 7;
+			state_count_ = 0;
+			shot_power_ = 0.1f;
+			break;
+		}
+		++state_count_;
+		break;*/
 	}
 
 	
@@ -124,7 +183,7 @@ void Player::Draw() const
 
 void Player::SetCueVisible(bool visible)
 {
-	if (state_ == 4) {
+	if (state_ == 4 || state_ == 5) {
 		cue_visible_ = false;
 	} else if (!cue_visible_ && visible) {
 		cue_visible_ = visible;
@@ -144,6 +203,11 @@ bool Player::GetDisplayGuide() const
 void Player::SetDisplayGuide(bool dg)
 {
 	display_guide_ = dg;
+}
+
+void Player::SetGameClear()
+{
+	state_ = 5;
 }
 
 void Player::CueUpdate()

@@ -14,8 +14,19 @@ class Graphics2D
 {
 public:
 	static void DrawString(int x, int y, char* str, unsigned color);
+	static void DrawStringCenter(int x, int y, char* str, unsigned color);
+	static void DrawFontString(int num, int x, int y, unsigned color, char* str);
+	static void DrawFontStringCenter(int num, int x, int y, unsigned color, char* str);
 	static void DrawRect(int x1, int y1, int x2, int y2, unsigned color, bool fill, int alpha = 255);
 	static void DrawRect(float x1, float y1, float x2, float y2, unsigned color, bool fill, int alpha = 255);
 
 	static void Update();
+};
+
+class Font
+{
+public:
+	static void Init();
+	static int GetSize(int num);
+	static int GetWidth(int num, char* str);
 };

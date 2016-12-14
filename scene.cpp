@@ -3,6 +3,7 @@
 #include "collidable.h"
 #include "table.h"
 #include "player.h"
+#include "ball.h"
 #include "camera.h"
 #include "graphics.h"
 #include "ui.h"
@@ -18,7 +19,7 @@ namespace
 	std::stack<Scene*> current_scene;
 }
 
-Scene::Scene(int level) : level_(level)
+Scene::Scene(int level) : level_(level), child_(nullptr)
 {
 	assert(level_ <= current_scene.size());
 	while (level_ < current_scene.size()) {
@@ -33,6 +34,7 @@ Scene::Scene(int level) : level_(level)
 
 Scene::~Scene()
 {
+	if (child_) delete child_;
 	for (auto o : objects_) delete o;
 	if (current_scene.top() == this) current_scene.pop();
 }
@@ -73,114 +75,127 @@ void Scene::DrawGameObjects() const
 	Graphics2D::Update();
 }
 
-
-GameObject * Scene::RegisterObject(GameObject * o)
+Scene* Scene::UpdateChild()
 {
-	assert(current_scene.top()->objects_.size() < current_scene.top()->objects_.capacity());
-	current_scene.top()->objects_.push_back(o);
-	return o;
+	assert(child_);
+	Scene* next_scene = child_->Update();
+	if (next_scene != child_) {
+		delete child_;
+		if (next_scene && next_scene->GetLevel() <= GetLevel()) {
+			child_ = nullptr;
+			return next_scene;
+		}
+		child_ = next_scene;
+		if (child_) child_->Init();
+	}
+	return this;
 }
 
-void Scene::RegisterCollider(Collidable * c)
+Scene* Scene::GetCurrentScene()
 {
-	current_scene.top()->collider_.push_back(c);
+	return current_scene.top();
+}
+
+void Scene::RegisterObject(GameObject* o)
+{
+	assert(objects_.size() < objects_.capacity());
+	objects_.push_back(o);
+}
+
+void Scene::RegisterCollider(Collidable* c)
+{
+	collider_.push_back(c);
 }
 
 
-Root::Root() : Scene(0), child_(nullptr)
+// ルート
+Root::Root() : Scene(0)
 {
 	child_ = new Title();
 	child_->Init();
 }
 
-Root::~Root()
-{
-	if (child_) delete child_;
-}
-
 Scene* Root::Update()
 {
-	Scene* next_scene = child_->Update();
-	if (next_scene != child_) {
-		delete child_;
-		child_ = next_scene;
-		assert(child_);
-		if (child_->GetLevel() <= GetLevel()) {
-			return child_;
-		}
-		child_->Init();
+	return UpdateChild();
+}
+
+
+// タイトル
+Title::Title(int fade) : Scene(1)
+{
+	if (fade > 0) {
+		child_ = new FadeIn(fade);
 	}
-	return this;
 }
 
-
-Title::Title() : Scene(1), child_(nullptr)
+void Title::Init()
 {
-}
-
-Title::~Title()
-{
-	if (child_) delete child_;
+	if (child_) child_->Init();
+	Table* t = new Table(vec3f());
+	t->SetupEightBall();
+	Camera3D camera;
+	vec3f camera_pos = t->GetPos() + vec3f(t->GetWidth()-2.7f, t->GetHeight()+2.1f, -1.4f);
+	camera.SetViewTransform(camera_pos, vec3f(t->GetWidth()*2.f, t->GetHeight(), 0.f));
+	auto screen_size = Camera3D::GetScreenSize();
+	nine_  = new StringButton(screen_size.x - 220, screen_size.y - 220, 3, "9ボール配置");
+	eight_ = new StringButton(screen_size.x - 220, screen_size.y - 170, 3, "8ボール配置");
+	exit_  = new StringButton(screen_size.x - 220, screen_size.y - 100, 3, "終了");
 }
 
 Scene * Title::Update()
 {
 	// 子シーンがあればそちらを実行
 	if (child_) {
-
-		Graphics2D::DrawString(100, 100, "たいとる", 0xffffff);
 		// 描画のみ行う
+		auto screen_size = Camera3D::GetScreenSize();
+		Graphics2D::DrawFontStringCenter(2, screen_size.x / 2, 100, 0xffffff, "1人ビリヤード");
 		DrawGameObjects();
-
-		Scene* next_scene = child_->Update();
-		if (next_scene != child_) {
-			delete child_;
-			child_ = next_scene;
-			if (child_ && child_->GetLevel() <= GetLevel()) {
-				child_ = nullptr;
-				return next_scene;
-			}
-			if (child_) child_->Init();
-		}
-		return this;
+		return UpdateChild();
 	}
 
-	child_ = new FadeOut(30, new GameMain());
-
-	Graphics2D::DrawString(100, 100, "たいとる", 0xffffff);
-
 	UpdateGameObjects();
+
+	auto screen_size = Camera3D::GetScreenSize();
+	Graphics2D::DrawFontStringCenter(2, screen_size.x / 2, 100, 0xffffff, "1人ビリヤード");
 	DrawGameObjects();
+
+	if (nine_->IsClicked()) {
+		child_ = new FadeOut(30, new GameMain(NINE_BALL));
+		return this;
+	}
+	if (eight_->IsClicked()) {
+		child_ = new FadeOut(30, new GameMain(EIGHT_BALL));
+		return this;
+	}
+	if (exit_->IsClicked()) {
+		return new Exit();
+	}
 
 	return this;
 }
 
 
-GameMain::GameMain() : Scene(1), child_(nullptr)
+// メイン
+GameMain::GameMain(GameMode mode) : Scene(1), mode_(mode), update_while_child_scene_(false)
 {
-	//Ball* ball = new Ball({ 0.f, 0.f, 0.f }, 0);
-	//Ball* ball = new Ball({ -8.f, 0.f, 3.f }, 0);
-	//for (int i = 1; i < 16; ++i) {
-		//new Ball({ -5.76f + 0.72f*i, 0.f, 3.f }, i);
-		//new Ball({ 4.38f+0.72f*i, 0.f, 3.f }, i);
-		//new Ball({ -8.f + 1.f*i, 0.f, 7.95f-0.36f }, i);
-	//}
-}
-
-GameMain::~GameMain()
-{
-	if(child_) delete child_;
 }
 
 void GameMain::Init()
 {
 	table_ = new Table({ 0.f, -9.4f, 0.f });
-	Ball* b0 = table_->SetupNineBall();
+	Ball* b0 = nullptr;
+	if (mode_ == NINE_BALL) {
+		b0 = table_->SetupNineBall();
+	} else if (mode_ == EIGHT_BALL) {
+		b0 = table_->SetupEightBall();
+	}
+	assert(b0);
 	player_ = new Player(b0, table_);
 	player_->SetCueVisible(false);
 	menu_btn_ = new Button(580, 10, 50, 30, "MENU");
 
-	child_ = new FadeIn(30);
+	child_ = new FadeIn(30, new GameStart());
 	child_->Init();
 }
 
@@ -188,26 +203,17 @@ Scene* GameMain::Update()
 {
 	// 子シーンがあればそちらを実行
 	if (child_) {
-		// 描画のみ行う
+		if (update_while_child_scene_) UpdateGameObjects();
 		DrawGameObjects();
 
-		Scene* next_scene = child_->Update();
-		if (next_scene != child_) {
-			delete child_;
-			child_ = next_scene;
-			if (child_ && child_->GetLevel() <= GetLevel()) {
-				child_ = nullptr;
-				return next_scene;
-			}
-			if(child_) child_->Init();
-		}
-		return this;
+		return UpdateChild();
 	}
 
+	// ポーズ
 	if (menu_btn_->IsMouseOver()) {
 		if (menu_btn_->IsClicked()) {
 			DrawGameObjects();
-			child_ = new Pause(player_);
+			child_ = new Pause(mode_, player_);
 			return this;
 		}
 		MouseInput::GetInstance().SetValid(false);
@@ -218,12 +224,50 @@ Scene* GameMain::Update()
 	//描画
 	DrawGameObjects();
 
-	for (int i = 0; i <= 9; ++i) {
-		printfDx("%d", table_->GetBallState(i));
+	// ゲームオーバー
+	if (table_->GetBallState(0) == 0) {
+		update_while_child_scene_ = true;
+		child_ = new GameOver(this);
+		return this;
 	}
-	printfDx("\n");
+	// ゲームクリア
+	if (IsFallingAllTargetBall()) {
+		player_->SetGameClear();
+		update_while_child_scene_ = true;
+		child_ = new GameClear();
+		return this;
+	}
 
 	return this;
+}
+
+void GameMain::ResetCueBall()
+{
+	Ball* ball;
+	Ball* b0 = nullptr;
+	vec3f reset_pos = table_->GetPos() + vec3f(-table_->GetWidth(), table_->GetHeight(), 0.f);
+	bool is_hit = false;
+	do {
+		for (auto o : objects_) {
+			if (o->GetType() == BALL) {
+				assert(dynamic_cast<Ball*>(o));
+				ball = static_cast<Ball*>(o); // Ball型確定なのでstatic_castでいい
+				if (ball->GetNumber() == 0) {
+					b0 = ball;
+					continue;
+				}
+				if (ball->IsFalling()) continue;
+				// 設置場所が他の球と重なってたらずらす
+				if ((ball->GetPos() - reset_pos).LengthSq() < ball->GetRadius()*ball->GetRadius()) {
+					reset_pos.x += ball->GetRadius();
+					is_hit = true;
+					break;
+				}
+			}
+		}
+	} while (is_hit);
+	assert(b0);
+	b0->Reset(reset_pos);
 }
 
 void GameMain::UpdateGameObjects()
@@ -266,9 +310,19 @@ void GameMain::UpdateGameObjects()
 	}
 }
 
+bool GameMain::IsFallingAllTargetBall() const
+{
+	for (int i = 1; i < 16; ++i) {
+		if (table_->GetBallState(i) == -1) break;
+		if (table_->GetBallState(i) == 1) return false;
+	}
+	return true;
+}
 
+
+// フェードイン
 FadeIn::FadeIn(int time, Scene* next) : 
-	Scene(2), time_(time), next_(next), bright(255), fade_rate_(255 / time)
+	Scene(2), time_(time), next_(next), bright_(255), fade_rate_(255 / time)
 {
 	assert(time_ >= 0);
 }
@@ -280,16 +334,18 @@ FadeIn::~FadeIn()
 
 Scene* FadeIn::Update()
 {
-	bright -= fade_rate_;
+	bright_ -= fade_rate_;
 	auto screen_size = Camera3D::GetScreenSize();
-	Graphics2D::DrawRect(0, 0, screen_size.x, screen_size.y, 0, true, bright);
+	if (time_ == 0) bright_ = 0;
+	Graphics2D::DrawRect(0, 0, screen_size.x, screen_size.y, 0, true, bright_);
 	Graphics2D::Update();
-	if (--time_ == 0) return next_;
+	if (time_-- == 0) return next_;
 	return this;
 }
 
+// フェードアウト
 FadeOut::FadeOut(int time, Scene* next) :
-	Scene(2), time_(time), next_(next), bright(0), fade_rate_(255 / time)
+	Scene(2), time_(time), next_(next), fade_rate_(255 / time), bright_(fade_rate_)
 {
 	assert(time_ >= 0);
 }
@@ -301,29 +357,187 @@ FadeOut::~FadeOut()
 
 Scene* FadeOut::Update()
 {
-	bright += fade_rate_;
+	bright_ += fade_rate_;
+	if (time_ == 0) bright_ = 255;
 	auto screen_size = Camera3D::GetScreenSize();
-	Graphics2D::DrawRect(0, 0, screen_size.x, screen_size.y, 0, true, bright);
+	Graphics2D::DrawRect(0, 0, screen_size.x, screen_size.y, 0, true, bright_);
 	Graphics2D::Update();
-	if (--time_ == 0) return next_;
+	if (time_-- == 0) return next_;
 	return this;
 }
 
-Pause::Pause(Player* p) : Scene(2), menu_(new PauseMenu(p))
+// ポーズ
+Pause::Pause(GameMode mode, Player* p) : Scene(2), menu_(new PauseMenu(p)), mode_(mode)
 {
 }
 
 Scene* Pause::Update()
 {
 	if (menu_->PushClose()) return nullptr;
-	if (menu_->PushRestart()) return new FadeOut(60, new GameMain());
-	if (menu_->PushTitle()) return new FadeOut(60, new Title());
+	if (menu_->PushRestart()) return new FadeOut(60, new GameMain(mode_));
+	if (menu_->PushTitle()) return new FadeOut(60, new Title(30));
 
 	UpdateGameObjects();
 
 	auto screen_size = Camera3D::GetScreenSize();
 	Graphics2D::DrawRect(0, 0, screen_size.x, screen_size.y, 0, true, 128);
 	Graphics2D::Update();
+	DrawGameObjects();
+
+	return this;
+}
+
+
+// ゲームスタート
+GameStart::GameStart() : Scene(2), state_(0), state_count_(0)
+{
+}
+
+Scene * GameStart::Update()
+{
+	char* message = "クリア条件: 全ての的球をポケットに落とす(順番不問)";
+	int width = 20;
+	auto screen_size = Camera3D::GetScreenSize();
+	int ofs_y;
+	switch (state_) {
+	case 0:
+		ofs_y = static_cast<int>(std::sin(PI / 60.f * state_count_) * (screen_size.y / 2 + width));
+		Graphics2D::DrawRect(0, -width * 2 + ofs_y, screen_size.x, 0 + ofs_y, 0x000000, true, 128);
+		Graphics2D::DrawFontStringCenter(0, screen_size.x / 2, -width + ofs_y, 0xffffff, message);
+		if (state_count_ == 30) {
+			++state_;
+			state_count_ = 0;
+		}
+		break;
+	case 1:
+		Graphics2D::DrawRect(0, screen_size.y / 2 - width, screen_size.x, screen_size.y / 2 + width, 0x000000, true, 128);
+		Graphics2D::DrawFontStringCenter(0, screen_size.x / 2, screen_size.y / 2, 0xffffff, message);
+		if (state_count_ == 180 || MouseInput::GetInstance().LeftDown() || MouseInput::GetInstance().RightDown()) {
+			++state_;
+			state_count_ = 0;
+		}
+		break;
+	case 2:
+		ofs_y = static_cast<int>(std::cos(PI/2.f - PI / 60.f * state_count_) * (screen_size.y / 2 + width));
+		Graphics2D::DrawRect(0, screen_size.y / 2 - width + ofs_y, screen_size.x, screen_size.y / 2 + width + ofs_y, 0x000000, true, 128);
+		Graphics2D::DrawFontStringCenter(0, screen_size.x / 2, screen_size.y / 2 + ofs_y, 0xffffff, message);
+		if (state_count_ == 15) {
+			return nullptr;
+		}
+		break;
+	}
+	++state_count_;
+
+	Graphics2D::Update();
+	UpdateGameObjects();
+	DrawGameObjects();
+
+	return this;
+}
+
+// ゲームオーバー
+GameOver::GameOver(GameMain* parent) : 
+	Scene(2), parent_(parent), yes_(nullptr), no_(nullptr), state_(0), state_count_(0)
+{
+}
+
+Scene* GameOver::Update()
+{
+	int width = 40;
+	auto screen_size = Camera3D::GetScreenSize();
+	int ofs_y;
+	switch (state_) {
+	case 0:
+		ofs_y = static_cast<int>(std::sin(PI / 120.f * state_count_) * (screen_size.y / 2 + width));
+		Graphics2D::DrawRect(0, -width*2 + ofs_y,
+			screen_size.x, 0 + ofs_y, 0x000000, true, 128);
+		Graphics2D::DrawStringCenter(screen_size.x / 2, -width * 2 + 10 + ofs_y,
+			"GAME OVER", 0xffffff);
+		Graphics2D::DrawStringCenter(screen_size.x / 2, -width * 2 + 35 + ofs_y,
+			"手球が落下しました。このまま続行しますか？", 0xffffff);
+		if (state_count_ == 60) {
+			++state_;
+			state_count_ = 0;
+		}
+		break;
+	case 1:
+		Graphics2D::DrawRect(0, screen_size.y/2 - width, 
+			screen_size.x, screen_size.y/2 + width, 0x000000, true, 128);
+		Graphics2D::DrawStringCenter(screen_size.x / 2, screen_size.y / 2 - width + 10,
+			"GAME OVER", 0xffffff);
+		Graphics2D::DrawStringCenter(screen_size.x / 2, screen_size.y / 2 - width + 35, 
+			"手球が落下しました。このまま続行しますか？", 0xffffff);
+		if (state_count_ == 20) {
+			++state_;
+			state_count_ = 0;
+			yes_ = new StringButton(screen_size.x / 2 - 80, screen_size.y / 2 - width + 50, 0, "はい");
+			no_  = new StringButton(screen_size.x / 2 + 80, screen_size.y / 2 - width + 50, 0, "いいえ");
+		}
+		break;
+	case 2:
+		Graphics2D::DrawRect(0, screen_size.y / 2 - width,
+			screen_size.x, screen_size.y / 2 + width, 0x000000, true, 128);
+		Graphics2D::DrawStringCenter(screen_size.x / 2, screen_size.y / 2 - width + 10,
+			"GAME OVER", 0xffffff);
+		Graphics2D::DrawStringCenter(screen_size.x / 2, screen_size.y / 2 - width + 35,
+			"手球が落下しました。このまま続行しますか？", 0xffffff);
+		if (yes_->IsClicked()) {
+			parent_->ResetCueBall();
+			return nullptr;
+		} else if(no_->IsClicked()) {
+			return new FadeOut(60, new Title(60));
+		}
+		break;
+	}
+	++state_count_;
+
+	Graphics2D::Update();
+	UpdateGameObjects();
+	DrawGameObjects();
+
+	return this;
+}
+
+// ゲームクリア
+GameClear::GameClear() : Scene(2), state_(0), state_count_(0)
+{
+}
+
+Scene* GameClear::Update()
+{
+	int width = 40;
+	auto screen_size = Camera3D::GetScreenSize();
+	int ofs_y;
+	switch (state_) {
+	case 0:
+		ofs_y = static_cast<int>(std::sin(PI / 120.f * state_count_) * (screen_size.y / 2 + width));
+		Graphics2D::DrawRect(0, -width * 2 + ofs_y, screen_size.x, 0 + ofs_y, 0x000000, true, 128);
+		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, -width + ofs_y, 0xffffff, "GAME CLEAR");
+		if (state_count_ == 60) {
+			++state_;
+			state_count_ = 0;
+		}
+		break;
+	case 1:
+		Graphics2D::DrawRect(0, screen_size.y / 2 - width, screen_size.x, screen_size.y / 2 + width, 0x000000, true, 128);
+		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, screen_size.y / 2, 0xffffff, "GAME CLEAR");
+		if (state_count_ == 20) {
+			++state_;
+			state_count_ = 0;
+		}
+		break;
+	case 2:
+		Graphics2D::DrawRect(0, screen_size.y / 2 - width, screen_size.x, screen_size.y / 2 + width, 0x000000, true, 128);
+		Graphics2D::DrawFontStringCenter(1, screen_size.x / 2, screen_size.y / 2, 0xffffff, "GAME CLEAR");
+		if (MouseInput::GetInstance().LeftDown()) {
+			return new FadeOut(90, new Title(90));
+		}
+		break;
+	}
+	++state_count_;
+
+	Graphics2D::Update();
+	UpdateGameObjects();
 	DrawGameObjects();
 
 	return this;

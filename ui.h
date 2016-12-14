@@ -24,9 +24,19 @@ public:
 	bool IsClicked() const;
 	bool IsMouseOver() const;
 
-private:
+protected:
 	int width_, height_;
 	char* str_;
+};
+
+// クリックできる文字列
+class StringButton : public Button
+{
+public:
+	StringButton(int x, int y, int font_num, char* str);
+	virtual void Draw() const override;
+private:
+	int font_num_;
 };
 
 // チェックボックス

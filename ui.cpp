@@ -34,6 +34,19 @@ bool Button::IsMouseOver() const
 			Range<int>(y_, y_ + height_).WithinEq(mouse_pos.y);
 }
 
+
+StringButton::StringButton(int x, int y, int font_num, char * str) :
+	Button(x, y, Font::GetWidth(font_num, str), Font::GetSize(font_num), str), font_num_(font_num)
+{
+}
+
+void StringButton::Draw() const
+{
+	unsigned color = IsMouseOver() ? 0xffffff : 0xaaaaaa;
+	Graphics2D::DrawFontString(font_num_, x_, y_, color, str_);
+}
+
+
 CheckBox::CheckBox(int x, int y, bool check) : PlaneUI(x, y), check_(check), size_(20)
 {
 }

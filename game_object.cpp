@@ -2,9 +2,9 @@
 #include "scene.h"
 
 GameObject::GameObject(ObjectType type, const vec3f& pos) 
-	: type_(type), pos_(pos), exist_(true)
+	: my_scene_(Scene::GetCurrentScene()), type_(type), pos_(pos), exist_(true)
 {
-	Scene::RegisterObject(this);
+	my_scene_->RegisterObject(this);
 }
 
 void GameObject::UpdatePosition()

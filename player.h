@@ -31,6 +31,7 @@ public:
 	void SetCueVisible(bool visible);
 	bool GetDisplayGuide() const;
 	void SetDisplayGuide(bool dg);
+	void SetGameClear();
 
 private:
 	void CueUpdate();

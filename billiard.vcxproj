@@ -170,7 +170,9 @@
     <ClCompile Include="mouse_input.cpp" />
     <ClCompile Include="player.cpp" />
     <ClCompile Include="quaternion.cpp" />
+    <ClCompile Include="random.cpp" />
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="sound.cpp" />
     <ClCompile Include="table.cpp" />
     <ClCompile Include="ui.cpp" />
   </ItemGroup>
@@ -187,8 +189,10 @@
     <ClInclude Include="mouse_input.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="quaternion.h" />
+    <ClInclude Include="random.h" />
     <ClInclude Include="range.h" />
     <ClInclude Include="scene.h" />
+    <ClInclude Include="sound.h" />
     <ClInclude Include="table.h" />
     <ClInclude Include="ui.h" />
     <ClInclude Include="vector2.h" />

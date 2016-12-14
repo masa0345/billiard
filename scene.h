@@ -15,18 +15,24 @@ public:
 	virtual void Init();
 	virtual Scene* Update() = 0;
 	unsigned int GetLevel() const;
+	void RegisterObject(GameObject* o);
+	void RegisterCollider(Collidable* c);
+
 protected:
 	virtual void UpdateGameObjects();
 	virtual void DrawGameObjects() const;
+	Scene* UpdateChild();
 
 	std::vector<GameObject*> objects_;
 	std::vector<Collidable*> collider_;
+	Scene* child_;
 private:
 	unsigned int level_; // シーン階層の深さ
 
 public:
-	static GameObject* RegisterObject(GameObject* o);
-	static void RegisterCollider(Collidable* c);
+	static Scene* GetCurrentScene();
+	//static GameObject* RegisterObject(GameObject* o);
+	//static void RegisterCollider(Collidable* c);
 };
 
 // ルートシーン
@@ -34,10 +40,8 @@ class Root : public Scene
 {
 public:
 	Root();
-	virtual ~Root();
+	virtual ~Root() = default;
 	virtual Scene* Update() override;
-private:
-	Scene* child_;
 };
 
 // 終了 このシーンを返すとウィンドウが閉じる
@@ -51,36 +55,49 @@ public:
 
 
 // タイトル
+class StringButton;
 class Title : public Scene
 {
 public:
-	Title();
-	virtual ~Title();
+	Title(int fade = 0);
+	virtual ~Title() = default;
+	virtual void Init() override;
 	virtual Scene* Update() override;
 private:
-	Scene* child_;
+	StringButton* nine_;
+	StringButton* eight_;
+	StringButton* exit_;
 };
 
+enum GameMode
+{
+	NINE_BALL,
+	EIGHT_BALL,
+};
 
 class Table;
 class Player;
 class Button;
-
 // メインシーン
 class GameMain : public Scene
 {
 public:
-	GameMain();
-	virtual ~GameMain();
+	GameMain(GameMode mode);
+	virtual ~GameMain() = default;
 	virtual void Init() override;
 	virtual Scene* Update() override;
+	
+	void ResetCueBall();
+
 private:
 	virtual void UpdateGameObjects() override;
+	bool IsFallingAllTargetBall() const;
 
-	Scene* child_;
+	GameMode mode_;
 	Table* table_;
 	Player* player_;
 	Button* menu_btn_;
+	bool update_while_child_scene_;
 };
 
 // フェードイン
@@ -92,7 +109,7 @@ public:
 	virtual Scene* Update() override;
 private:
 	int time_;
-	int bright, fade_rate_;
+	int bright_, fade_rate_;
 	Scene* next_;
 };
 
@@ -105,19 +122,55 @@ public:
 	virtual Scene* Update() override;
 private:
 	int time_;
-	int bright, fade_rate_;
+	int bright_, fade_rate_;
 	Scene* next_;
 };
 
-class PauseMenu;
-
 // ポーズ
+class PauseMenu;
 class Pause : public Scene
 {
 public:
-	Pause(Player* p);
+	Pause(GameMode mode, Player* p);
 	virtual ~Pause() = default;
 	virtual Scene* Update() override;
 private:
 	PauseMenu* menu_;
+	GameMode mode_;
+};
+
+// ゲームスタート
+class GameStart : public Scene
+{
+public:
+	GameStart();
+	virtual ~GameStart() = default;
+	virtual Scene* Update() override;
+private:
+	int state_, state_count_;
+};
+
+// ゲームオーバー
+class GameOver : public Scene
+{
+public:
+	GameOver(GameMain* parent);
+	virtual ~GameOver() = default;
+	virtual Scene* Update() override;
+private:
+	GameMain* parent_;
+	StringButton* yes_;
+	StringButton* no_;
+	int state_, state_count_;
+};
+
+// ゲームクリア
+class GameClear : public Scene
+{
+public:
+	GameClear();
+	virtual ~GameClear() = default;
+	virtual Scene* Update() override;
+private:
+	int state_, state_count_;
 };

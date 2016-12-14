@@ -2,8 +2,8 @@
 #include "model.h"
 #include "scene.h"
 #include "ball.h"
+#include "random.h"
 #include <algorithm>
-#include <random>
 
 Table::Table(const vec3f& pos) : GameObject(TABLE, pos), width_(7.95f), height_(9.4f)
 {
@@ -15,7 +15,7 @@ Table::Table(const vec3f& pos) : GameObject(TABLE, pos), width_(7.95f), height_(
 
 void Table::Update()
 {
-	Scene::RegisterCollider(this);
+	my_scene_->RegisterCollider(this);
 	model_->SetPosition(pos_);
 }
 
@@ -72,12 +72,19 @@ Ball* Table::SetupNineBall()
 	//int nums[] = { 1, 2, 3, 4, 9, 5, 6, 7 ,8 }; // 位置固定
 	// 的球の位置はランダム
 	std::vector<int> nums{ 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	std::random_device rd;
-	std::shuffle(nums.begin(), nums.end(), std::mt19937(rd()));
+	std::shuffle(nums.begin(), nums.end(), Random::GetMT());
+	// 1と9は固定
 	for (unsigned i = 0; i < nums.size(); ++i) {
-		// 1と9は固定
-		if (nums[i] == 1) std::swap(nums[i], nums[0]);
-		if (nums[i] == 9) std::swap(nums[i], nums[4]);
+		if (nums[i] == 1) {
+			std::swap(nums[i], nums[0]);
+			break;
+		}
+	}
+	for (unsigned i = 1; i < nums.size(); ++i) {
+		if (nums[i] == 9) {
+			std::swap(nums[i], nums[4]);
+			break;
+		}
 	}
 	const vec3f ofs = vec3f(0.625f, 0.f, -0.362f);
 	vec3f ini_pos = pos_ + vec3f(width_, height_, 0.f);
@@ -90,6 +97,48 @@ Ball* Table::SetupNineBall()
 		}
 		ini_pos.x += ofs.x;
 		ini_pos.z -= ofs.z;
+	}
+	return ball;
+}
+
+Ball * Table::SetupEightBall()
+{
+	std::vector<int> nums;
+	for (int i = 1; i < 16; ++i) {
+		ball_states_[i] = 1;
+		nums.push_back(i);
+	}
+	std::shuffle(nums.begin(), nums.end(), Random::GetMT());
+	// 8は固定
+	for (unsigned i = 0; i < nums.size(); ++i) {
+		if (nums[i] == 8) {
+			std::swap(nums[i], nums[4]);
+			break;
+		}
+	}
+	if (nums[10] > 8 && nums[14] > 8) {
+		for (int i = 5; i < 14; ++i) {
+			if (nums[i] < 8) {
+				std::swap(nums[i], nums[10]);
+				break;
+			}
+		}
+	} else if(nums[10] < 8 && nums[14] < 8){
+		for (int i = 5; i < 14; ++i) {
+			if (nums[i] > 8) {
+				std::swap(nums[i], nums[10]);
+				break;
+			}
+		}
+	}
+	const vec3f ofs = vec3f(0.621f, 0.f, 0.362f);
+	vec3f ini_pos = pos_ + vec3f(width_, height_, 0.f);
+	Ball* ball = new Ball(vec3f(pos_.x - width_, pos_.y + height_, pos_.z), 0);
+	for (int i = 0; i < 5; ++i) {
+		for (int j = 0; j <= i; ++j) {
+			new Ball(ini_pos + vec3f(0.f, 0.f, -ofs.z*j*2), nums[i*(i+1)/2+j]);
+		}
+		ini_pos += ofs;
 	}
 	return ball;
 }

@@ -10,6 +10,8 @@ enum ObjectType
 	UI,
 };
 
+class Scene;
+
 class GameObject
 {
 public:
@@ -29,4 +31,5 @@ protected:
 	ObjectType type_;
 	bool exist_;
 	vec3f pos_;
+	Scene* const my_scene_;
 };

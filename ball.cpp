@@ -4,6 +4,7 @@
 #include "table.h"
 #include "range.h"
 #include "quaternion.h"
+#include "random.h"
 #include <cassert>
 
 #include <DxLib.h> // ƒfƒoƒbƒOprintfDx—p
@@ -141,6 +142,9 @@ Ball::Ball(const vec3f& pos, int num)
 	pos_.y += radius_;
 	model_ = std::make_shared<Model>("ball/" + std::to_string(num) + ".pmd");
 	model_->SetPosition(pos_);
+	// ƒ‰ƒ“ƒ_ƒ€‚É‰ñ“]
+	vec3f rot_axis = vec3f(Random::GetFloat(-1.f, 1.f), Random::GetFloat(0.01f, 1.f), Random::GetFloat(-1.f, 1.f)).Normalize();
+	model_->AddRotation(rot_axis, Random::GetFloat(PI2));
 }
 
 void Ball::Update()
@@ -148,10 +152,8 @@ void Ball::Update()
 	// —Ž‰º’†‚Ìˆ—
 	if (falling_ > 0) {
 		if (falling_ < 5) {
-			if (falling_ == 1) {
-				col_.clear();
-				Scene::RegisterCollider(this);
-			}
+			col_.clear();
+			my_scene_->RegisterCollider(this);
 			++falling_;
 		} else {
 			vel_ = vec3f();
@@ -162,7 +164,7 @@ void Ball::Update()
 
 	// “–‚½‚è”»’è“o˜^
 	col_.clear();
-	Scene::RegisterCollider(this);
+	my_scene_->RegisterCollider(this);
 
 	// –€ŽC
 	float f = 0.001f;
@@ -269,6 +271,8 @@ bool Ball::Response(Ball* ball)
 bool Ball::Response(Table* t)
 {
 	if (falling_) {
+		if (!t->IsPocketX(pos_.x + vel_.x)) vel_.x = -vel_.x;
+		if (!t->IsPocketZ(pos_.z + vel_.z)) vel_.z = -vel_.z;
 		t->SetBallState(number_, 0);
 		return true;
 	}
