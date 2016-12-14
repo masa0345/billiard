@@ -16,6 +16,8 @@ MATRIX ToMATRIX(const Matrix4x3& m) {
 	return r;
 }
 
+int shadow_handle[3] = { -1, -1, -1 };
+
 }
 
 Model::Model(std::string file_name) : visible_(true)
@@ -59,4 +61,45 @@ void Model::Draw() const
 	Matrix4x3 mat = Matrix4x3::Rotate(rot_) * Matrix4x3::Translation(pos_);
 	MV1SetMatrix(handle_, ToMATRIX(mat));
 	MV1DrawModel(handle_);
+}
+
+void Model::InitShadowMap()
+{
+	SetLightDirection({ 1.f, -5.f, 1.f });
+	for (int i = 0; i < 2; ++i) {
+		shadow_handle[i] = MakeShadowMap(1024, 1024);
+		SetShadowMapLightDirection(shadow_handle[i], GetLightDirection());
+		SetShadowMapDrawArea(shadow_handle[i], VGet(-10.f, 5.f, -10.f), VGet(10.f, -5.f, 10.f));
+	}
+}
+
+void Model::DestShadowMap()
+{
+	for (int i = 0; i < 3; ++i) {
+		if (shadow_handle[i] != -1) DeleteShadowMap(shadow_handle[i]);
+	}
+}
+
+void Model::ShadowMapSetup(int num)
+{
+	ShadowMap_DrawSetup(shadow_handle[num]);
+}
+
+void Model::ShadowMapEnd()
+{
+	ShadowMap_DrawEnd();
+}
+
+void Model::UseShadowMapBegin()
+{
+	for (int i = 0; i < 3; ++i) {
+		if (shadow_handle[i] != -1) SetUseShadowMap(i, shadow_handle[i]);
+	}
+}
+
+void Model::UseShadowMapEnd()
+{
+	for (int i = 0; i < 3; ++i) {
+		if (shadow_handle[i] != -1) SetUseShadowMap(i, -1);
+	}
 }

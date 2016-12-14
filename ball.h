@@ -18,6 +18,7 @@ public:
 	virtual void Update() override;
 	virtual void UpdatePosition() override;
 	virtual void Draw() const override;
+	virtual void DrawShadowMap() const override;
 
 	virtual bool CollideWith(Collidable* c) override;
 	virtual bool Response(Ball* b) override;

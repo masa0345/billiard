@@ -7,6 +7,7 @@
 #include "camera.h"
 #include "graphics.h"
 #include "ui.h"
+#include "model.h"
 #include "sound.h"
 #include <cassert>
 #include <stack>
@@ -70,9 +71,21 @@ void Scene::UpdateGameObjects()
 
 void Scene::DrawGameObjects() const
 {
+	// シャドウマップへ描画
+	Model::ShadowMapSetup(1);
+	for (auto o : objects_) {
+		o->DrawShadowMap();
+	}
+	Model::ShadowMapEnd();
+
+	// 描画
+	Model::UseShadowMapBegin();
 	for (auto o : objects_) {
 		o->Draw();
 	}
+	Model::UseShadowMapEnd();
+
+	// 2Dオブジェクトの描画
 	Graphics2D::Update();
 }
 
@@ -138,6 +151,7 @@ void Title::Init()
 	Camera3D camera;
 	vec3f camera_pos = t->GetPos() + vec3f(t->GetWidth()-2.7f, t->GetHeight()+2.1f, -1.4f);
 	camera.SetViewTransform(camera_pos, vec3f(t->GetWidth()*2.f, t->GetHeight(), 0.f));
+	camera.UpdatePosition();
 	auto screen_size = Camera3D::GetScreenSize();
 	nine_  = new StringButton(screen_size.x - 220, screen_size.y - 220, 3, "9ボール配置");
 	eight_ = new StringButton(screen_size.x - 220, screen_size.y - 170, 3, "8ボール配置");
@@ -208,6 +222,7 @@ Scene* GameMain::Update()
 	// 子シーンがあればそちらを実行
 	if (child_) {
 		if (update_while_child_scene_) UpdateGameObjects();
+		player_->SetCameraPosition();
 		DrawGameObjects();
 		return UpdateChild();
 	}
@@ -215,6 +230,7 @@ Scene* GameMain::Update()
 	// ポーズ
 	if (menu_btn_->IsMouseOver()) {
 		if (menu_btn_->IsClicked()) {
+			player_->SetCameraPosition();
 			DrawGameObjects();
 			child_ = new Pause(mode_, player_);
 			return this;
@@ -224,6 +240,7 @@ Scene* GameMain::Update()
 
 	// 更新
 	UpdateGameObjects();
+	player_->SetCameraPosition();
 	//描画
 	DrawGameObjects();
 

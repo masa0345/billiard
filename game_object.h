@@ -21,6 +21,7 @@ public:
 	virtual void Update() = 0;
 	virtual void UpdatePosition();
 	virtual void Draw() const;
+	virtual void DrawShadowMap() const;
 
 	const ObjectType GetType() const;
 	bool GetExist() const;

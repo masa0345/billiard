@@ -80,7 +80,7 @@ bool ImageBallGuide::Response(Ball* ball)
 bool ImageBallGuide::Response(Table* t)
 {
 	float tw = t->GetWidth();
-	Range<float> t_range(0.01f, 1.f);
+	Range<float> t_range(0.001f, 1.f);
 	vec3f dv = dir_ * length_;
 	vec3f dp = pos_ - t->GetPos();
 	BounceData bounce(pos_, dir_, length_);

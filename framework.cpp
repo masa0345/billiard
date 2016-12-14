@@ -3,6 +3,7 @@
 #include "camera.h"
 #include "mouse_input.h"
 #include "graphics.h"
+#include "model.h"
 #include "sound.h"
 #include <DxLib.h>
 
@@ -30,6 +31,7 @@ Framework::Framework()
 	Font::Init();
 	Sound::Init();
 	MouseInput::Init();
+	Model::InitShadowMap();
 	root_ = new Root();
 	root_->Init();
 }
@@ -37,6 +39,7 @@ Framework::Framework()
 Framework::~Framework()
 {
 	if (root_) delete root_;
+	Model::DestShadowMap();
 	MouseInput::Dest();
 	Sound::Dest();
 

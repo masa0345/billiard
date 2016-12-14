@@ -10,6 +10,11 @@ Table::Table(const vec3f& pos) : GameObject(TABLE, pos), width_(7.95f), height_(
 	model_ = std::make_shared<Model>("table/pool_table.pmd");
 	model_->SetPosition(pos_);
 	for (int i = 0; i < 16; ++i) ball_states_[i] = -1;
+
+	// 動かないのでシャドウマップは1度だけ描画
+	Model::ShadowMapSetup(0);
+	model_->Draw();
+	Model::ShadowMapEnd();
 }
 
 

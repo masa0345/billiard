@@ -211,6 +211,11 @@ void Ball::Draw() const
 	model_->Draw();
 }
 
+void Ball::DrawShadowMap() const
+{
+	Draw();
+}
+
 bool Ball::CollideWith(Collidable* c)
 {
 	return c->Response(this);

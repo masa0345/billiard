@@ -15,6 +15,10 @@ void GameObject::Draw() const
 {
 }
 
+void GameObject::DrawShadowMap() const
+{
+}
+
 const ObjectType GameObject::GetType() const
 {
 	return type_;

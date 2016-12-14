@@ -27,11 +27,13 @@ public:
 	virtual void Update() override;
 	virtual void UpdatePosition() override;
 	virtual void Draw() const override;
+	virtual void DrawShadowMap() const override;
 
 	void SetCueVisible(bool visible);
 	bool GetDisplayGuide() const;
 	void SetDisplayGuide(bool dg);
 	void SetGameClear();
+	void SetCameraPosition() const;
 	int GetTurn() const;
 
 private:

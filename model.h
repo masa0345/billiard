@@ -19,6 +19,13 @@ public:
 	void AddRotation(const vec3f& axis, float angle);
 	void Draw() const;
 
+	static void InitShadowMap();
+	static void DestShadowMap();
+	static void ShadowMapSetup(int num);
+	static void ShadowMapEnd();
+	static void UseShadowMapBegin();
+	static void UseShadowMapEnd();
+
 private:
 	int handle_;
 	bool visible_;

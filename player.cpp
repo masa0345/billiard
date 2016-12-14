@@ -117,10 +117,11 @@ void Player::Draw() const
 	cue_->SetRotation(cue_rot_);
 	cue_->SetPosition(ball_->GetPos() - cue_dir_ * (cue_length_ + 0.6f + shot_power_));
 	cue_->Draw();
-	if (state_ != 3) {
-		camera_->SetViewTransform((camera_pos_ + move_pos_).ToVec3f() + camera_target_, camera_target_);
-		Sound::GetInstance().Set3DListener((camera_pos_ + move_pos_).ToVec3f() + camera_target_, camera_target_);
-	}
+}
+
+void Player::DrawShadowMap() const
+{
+	Draw();
 }
 
 void Player::SetCueVisible(bool visible)
@@ -150,6 +151,11 @@ void Player::SetDisplayGuide(bool dg)
 void Player::SetGameClear()
 {
 	state_ = 5;
+}
+
+void Player::SetCameraPosition() const
+{
+	camera_->UpdatePosition();
 }
 
 int Player::GetTurn() const
@@ -200,6 +206,7 @@ void Player::CameraUpdate()
 			camera_pos_.r += zoom;
 		}
 	}
+	camera_->SetViewTransform((camera_pos_ + move_pos_).ToVec3f() + camera_target_, camera_target_);
 }
 
 void Player::CameraMove(float time)
